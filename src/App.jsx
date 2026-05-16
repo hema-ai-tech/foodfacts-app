@@ -1,122 +1,84 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import SearchBar from './components/SearchBar';
+import FoodList from './components/FoodList';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = async (query) => {
+    const trimmedQuery = query.trim();
+
+    if (!trimmedQuery) {
+      return;
+    }
+
+    // Keep the UI responsive by showing loading while the request is in flight.
+    setLoading(true);
+    setHasSearched(true);
+
+    try {
+      const endpoint = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(trimmedQuery)}&search_simple=1&action=process&json=1`;
+      const response = await fetch(endpoint);
+      const data = await response.json();
+
+      const validProducts = Array.isArray(data?.products)
+        ? data.products.filter((product) => product?.product_name && product.product_name.trim() !== '')
+        : [];
+
+      setResults(validProducts);
+    } catch (error) {
+      console.log(error);
+      // Fail safely so the page keeps working even if the network request fails.
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showInitialState = !hasSearched && !loading;
+  const showNoResults = hasSearched && !loading && results.length === 0;
+  const showResults = !loading && results.length > 0;
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+    <div className="app-shell">
+      <main className="app-container">
+        <section className="hero-card">
+          <p className="hero-kicker">FoodFacts</p>
+          <h1 className="hero-title">Search real nutrition data from Open Food Facts.</h1>
+          <p className="hero-copy">
+            Type a food name, browse the returned products, and inspect calories, protein, carbs, and fats in a clean responsive layout.
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+          <SearchBar onSearch={handleSearch} />
+        </section>
 
-      <div className="ticks"></div>
+        {loading && (
+          <section className="status-card loading-state" aria-live="polite" aria-busy="true">
+            <span className="loading-spinner" aria-hidden="true"></span>
+            <p>Loading food products...</p>
+          </section>
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {showInitialState && (
+          <section className="status-card empty-state" aria-live="polite">
+            <h2>Start your search</h2>
+            <p>Try a simple query like banana, oats, milk, or peanut butter to see live nutrition cards.</p>
+          </section>
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {showNoResults && (
+          <section className="status-card empty-state" aria-live="polite">
+            <h2>No results found</h2>
+            <p>Try a different search term or a broader food category.</p>
+          </section>
+        )}
+
+        {showResults && <FoodList products={results} />}
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
